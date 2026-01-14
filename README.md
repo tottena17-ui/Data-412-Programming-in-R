@@ -1,2 +1,2 @@
 # Data-412-Programming-in-R
-A collection of classwork, homework, and projects from my programming in R class from Spring 2025. 
+This repository is a collection of classwork, homework, and projects from data-412, introduction to programming in R from the spring of 2025. Through this class, I worked with many R packages including ggplot2, tidyverse, dplyr, stringr, janitor and more. I learned valuable skills in R including how to clean datasets, perform analysis, visual the data, and communicate my results. The skills were highlighted most in my final project. My groupmates and I examined a large dataset from Open Data DC about trees in Washington DC. 
