@@ -1,0 +1,137 @@
+---
+title: "Data 412 HW 4"
+author: "Ashley Totten"
+date: "2/20/2025"
+date-format: long
+format: pdf
+editor: visual
+---
+
+## Star Wars
+
+```{r}
+library(dplyr)
+data(starwars)
+```
+
+1.  The only difference in the output is that the group_by function put the droid species first in the tibble whereas the .by function put the human species first.
+
+```{r}
+starwars %>% 
+  filter(homeworld == "Tatooine") %>% 
+  group_by(species) %>% 
+  summarize(height_mean = mean(height), height_sd = sd(height), mass_mean = mean(mass), mass_sd = sd(mass), num = n())
+
+starwars %>% 
+  filter(homeworld == "Tatooine") %>%
+  summarize(.by = species, height_mean = mean(height), height_sd = sd(height), mass_mean = mean(mass), mass_sd = sd(mass), num = n())
+
+
+```
+
+2.  The tallest droid is C-3PO. The tallest human is Darth Vader.
+
+```{r}
+starwars %>% 
+  filter(homeworld == "Tatooine") %>%
+  select(name, species, height) %>% 
+  arrange(species, desc(height))
+
+```
+
+3.  The smallest droid is R5-D4, he appeared in a New Hope. The smallest human is Beru Whitesun Lars who appeared in A New Hope, Attack of the Clones, and Revenge of the Sith.
+
+```{r}
+starwars %>% 
+  filter(homeworld == "Tatooine") %>%
+  select(name, species, mass, films) %>% 
+  arrange(species, mass)
+```
+
+## NYC Flights
+
+```{r}
+library(nycflights13)
+data(flights)
+```
+
+1.  There are 10200 flights that had an arrival delay of 2 hours or more. There are 139504 flights that were operated by United, American, or Delta.
+
+```{r}
+flights %>% 
+  filter(arr_delay >= 120) -> delay_2
+head(delay_2, 10)
+count(delay_2)
+
+flights %>% 
+  filter( carrier == "DL"| carrier == "AA"|carrier == "UA") -> carriers
+head(carriers, 10)
+count(carriers)
+```
+
+2.  I could not get the 'and' syntax to work so I was not able to complete this in one pipe.
+
+```{r}
+flights %>% 
+  filter(arr_delay >= 120, dep_delay <= 0, between(month, 7, 8)) -> temp_flights
+flights %>% 
+  filter(arr_delay >= 120, dep_delay <= 0,month == 6, between(day, 21, 30)) -> temp_flights2
+flights %>% 
+  filter(arr_delay >= 120, dep_delay <= 0, month == 9, between(day, 1, 22)) -> temp_flights3
+
+aflights <- rbind(temp_flights, temp_flights2)
+flights2 <- rbind(aflights, temp_flights3)
+flights2 %>% 
+  arrange(month)
+head(flights2, 10)
+```
+
+3.  The destinations that are the shortest distance are La Guardia (LGA) and Philidelphia International (PHL).
+
+```{r}
+flights %>% 
+  select(distance, dest) %>% 
+  arrange(distance) %>% 
+  head(2)
+data(airports)
+```
+
+4.  There are some flights where their scheduled time and delay times are not equal to their departure times. These could be due to inaccuracies when inputting data or a complication with combining a negative delay time with the scheduled departure time.
+
+```{r}
+flights %>% 
+  mutate(dep_time_true = dep_time == dep_delay + sched_dep_time) %>% 
+  filter(dep_time_true == FALSE)
+```
+
+5.  Frontier Airlines has the worst average departure time with a mean of over 20 minutes.
+
+```{r}
+flights[!is.na(flights$dep_delay),] %>% 
+  summarize(.by = carrier, avg_delay = mean(dep_delay)) %>% 
+  arrange(desc(avg_delay))
+
+data(airlines)
+```
+
+6.  c\. You should schedule your flights for 5 am to minimize the expected delay time.
+
+```{r}
+library(ggplot2)
+
+flights[!is.na(flights$dep_delay),] %>% 
+  summarize(.by = hour, avg_delay = mean(dep_delay)) %>% 
+  arrange(desc(avg_delay)) -> flights_delay
+
+ggplot(flights_delay, aes(hour, avg_delay))+
+  geom_point()+
+  geom_smooth()
+```
+
+<!-- -->
+
+7.  The result surprises me because I would have thought that the select function, like the rest of R, was case sensitive, but it is not. The default setting is for the helper functions is to be case sensitive, you can override this by using ignore.case.
+
+```{r}
+flights |> select(contains("TIME"))
+```
