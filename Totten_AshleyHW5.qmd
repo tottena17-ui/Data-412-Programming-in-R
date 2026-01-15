@@ -1,0 +1,265 @@
+---
+title: "Data 412 HW 5"
+author: "Ashley Totten"
+date: "4/3/2025"
+date-format: long
+format: pdf
+editor: visual
+---
+
+## R Package Presentations
+
+### Cowsay, featuring the all knowing paper clip and Yoda!
+
+```{r}
+library(cowsay)
+library(fortunes)
+say("fortune", #tells the program what to say
+    by = "clippy" #specifies the alligator animal
+)
+```
+
+```{r}
+say("Do or do not, there is no try.",
+    by="yoda" 
+    )
+```
+
+I picked this presentation because it seemed like a fun package, and it was. The presentation did a good job of conveying the necessary material to use the package. It accomplished everything I was expecting it to. I explored different features of the package including the different animals and shapes it could draw. The code in the slides about listing all of the animals it could draw didn't work, so I imputted 'dog' as a test. It turns out there is no 'dog' animal in this package, but the error message provided a list of all of the available animals, which is how I found clippy and yoda along with many other funny options like grumpycat and wired cow. There are also options you can put in the "what" argument to provide cool results, like fortune which lists a fortune and catfacts which lists a random cat fact. This is a great package.
+
+## Plotthis
+
+```{r}
+library(plotthis)
+library(tidyverse)
+data(starwars)
+
+ViolinPlot(
+  starwars, # Data
+  x = "gender", # X Variable
+  y = "height", # Y Variable
+  group_by = "species", # Creates Groups for the column
+  fill_mode = "x", # Fills violin plot s 
+  add_box = T, # Adds a box plot
+  add_point = T, # Adds variable points
+  palette = "Blues", # Selects palette
+  title = "Gender comparison for species through gender", # Adds title
+  xlab = "Gender", # Changes X label
+  ylab = "Height (cm)", # Changes Y label 
+  )
+```
+
+```{r}
+library(dplyr)
+starwars %>% 
+  filter(mass > 0, height > 0)%>% 
+  LollipopPlot(
+    x = "mass", # X Variable
+    y = "height", # Y Variable
+    palette = "Purples", # Selects palette
+    title = "Mass v. Height in star wars character", # Adds title
+    xlab = "Mass (g)", # Changes X label
+    ylab = "Height (cm)", # Changes Y label 
+    )
+```
+
+I chose this package because it seemed like it had a lot to explore. After spending some time with it, the package has almost too much. I tried to explore the different plots, but I have not heard of most of these plots and the documentation is not clear on how to code with the different functions. The presentation gave a basic overview, but didn't really go into too much detail, which is understandable given how large the package is. I would not use this instead of ggplot normally, maybe if I wanted to make a graph very visually pleasing. Ultimately, it didn't end up accomplishing everything I had wanted, if I have some more time I'll go back and dive deeper into this package.
+
+## Global Patterns of Language Diversity
+
+```{r}
+Global_Lang <- read_csv("/Users/tottena17/Downloads/AU 24-25/Data-412 R/Global_Patterns_of_Language_Diversity.csv")
+
+Global_Lang %>% 
+  pivot_wider(
+    id_cols = starts_with("C"),
+    names_from = Measurement,
+    values_from = Value
+  ) -> lang
+
+```
+
+### Model
+
+```{r}
+lang %>% 
+  filter(Std < 2) %>% 
+  filter(Country !='Benin', Country != 'Burkina Faso',Country !='Cameroon', Country != 'Cote d\'Ivoire', Country !='Ghana',Country !='Guinea', Country !='Liberia',Country !='Mali',Country !='Mauritania',Country !='Niger',Country !='Nigeria',Country !='Sierra Leone', Country != 'Togo')->lang_filter
+
+lm(log(Langs) ~ MGS + log(Area), data = lang_filter) -> lm1
+summary(lm1)
+nrow(lang_filter)
+#the adjusted R^2 was .4009
+sqrt(.4009)
+```
+
+Assuming all other variables hold constant and controlling for area, for 1 unit increase in the log of languages, the average increase in mean growing season is 0.23305. This is statistically significant with a p-value of \<0.01. The adjusted R-squared is .4009, which means this model explains 40.09% of the relationship between the log of languages and the mean growing season. There are 40 degrees of freedom in the model. An R of .6332 shows that there is a moderately strong correlation between mean growing season and the log of the languages.
+
+### Assumptions
+
+```{r}
+library(patchwork)
+library(ggplot2)
+res_lang <- residuals(lm1)
+
+p1 <- tibble(lang_filter, res_lang) %>% 
+  ggplot(aes(x = MGS, y = res_lang))+
+  geom_point()+
+  geom_hline(yintercept = 0)+
+  labs(x = "Mean Growing Season", y = "Residuals", title = "Residual plot for Mean Growing Season")
+
+p2 <- tibble(lang_filter, res_lang) %>% 
+  ggplot(aes(x = log(Langs), y = res_lang))+
+  geom_point()+
+  geom_hline(yintercept = 0)+
+  labs(x = "Natural Log of Languages", y = "Residuals", title = "Residual plot for the Natural Log of Languages")
+
+p3 <- tibble(lang_filter, res_lang) %>% 
+  ggplot(aes(sample = res_lang))+
+  stat_qq()+
+  stat_qq_line()+
+  labs(x = "theoretical quantiles", y = "Residual", title = "QQ Plot for Residuals")
+
+p3 + p1 / p2
+
+```
+
+The QQ plot shows a roughly straight line with one outlier, so the assumption of normality can be fulfilled. The residual plot for mean growing season a mostly random pattern, so the assumption of assciation is fulfilled. However, the residual plot for Natural Log of languages shows a linear association. This means that the assumption of association between the natural log of languages and mean growing season cannot be fulfilled. There may be other variables that contribute to the relationship between mean growing season and the natural log of langauges that are not included in the model. Another possibility is that the data points may not follow a linear relationship, given the graph of the model and the R\^2 statistic, the more likely situation is that there are other variables that contribute to the relationship between natural log of languages and growing season that are not included in the model.
+
+## EDA Workflow and Flint data
+
+### Basic info
+
+```{r}
+library(tidyverse)
+Flint <- read_csv("/Users/tottena17/Downloads/AU 24-25/Data-412 R/Flint_Facilities_Testing_2017.csv")
+
+#number of rows and columns and column names
+nrow(Flint)
+ncol(Flint)
+colnames(Flint)
+#checking for duplicates
+Flint %>% 
+  filter(duplicated(Flint))
+#checking for missing values. All False means there are no missing values
+Flint %>% 
+  summarize_all(~ any(is.na(.)))
+```
+
+### Cleaning observations
+
+```{r}
+#checking for unique values in facility name and sample description
+Flint %>% 
+  distinct(`Facility Name`)
+Flint %>% 
+  distinct(`Sample Description`)
+Flint %>% #replacing facility names that were duplicates
+  mutate(`Facility Name` = str_replace(`Facility Name`, "CUMMINGS/ GREAT EXPECTATIONS", "CUMMINGS/GREAT EXPECTATIONS")) %>% 
+  mutate(`Facility Name` = str_replace(`Facility Name`, "CUMMING/ GREAT EXPECTATIONS", "CUMMINGS/GREAT EXPECTATIONS")) %>% 
+  mutate(`Facility Name` = str_replace(`Facility Name`, "TEDDY BEARS/ PATRICE MOORE", "TEDDY BEARS/PATRICE MOORE")) %>% 
+  #replacing sample descriptions with simplier descriptions
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "KC"), "Kitchen sink", `Sample Description`)) %>%
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "BF"), "Restroom sink", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "NS"), "Nurse's station", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "WC"), "Water cooler", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "DW"), "Water fountain", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "CF"), "Classroom sink", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "SP"), "Chapel sink", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "CK"), "Kitchen sink", `Sample Description`)) %>% 
+  mutate(`Sample Description` = if_else(str_detect(`Sample Description`, "KS"), "Kitchen sink", `Sample Description`))->Flint1
+
+Flint1 %>% 
+  distinct(`Facility Name`)
+Flint1 %>% 
+  distinct(`Sample Description`)
+
+```
+
+### Cleaning Columns and Data Set Structure
+
+```{r}
+colnames(Flint1)
+#View(Flint1)
+
+Flint1 %>%  #removing unnecessary columns, all of the samples are from Flint, MI so that info does not need to be included.
+  mutate(City = NULL) %>% 
+  #pivoting the data set so Lead and Copper have their own columns
+  pivot_wider(
+    names_from = "Lead",
+    values_from = "Result ppb...3"
+  ) %>% 
+  pivot_wider(
+    names_from = "Copper",
+    values_from = "Result ppb...6"
+  ) %>% #standardizing the column names
+  rename_all(~ str_replace_all(., " ", "_")) %>% 
+  rename(Date = SUBDATE) %>% 
+  rename(Lead_ppb = Lead_250_mL_Sample) %>% 
+  rename(Copper_ppb = Copper_250_mL_Sample)-> Flint2
+
+Flint2
+
+```
+
+### Cleaning variable types
+
+```{r}
+Flint2 %>% 
+  mutate(Date = as.Date(Date)) %>% 
+  mutate(Sample_Description = as.factor(Sample_Description)) %>%
+  mutate(Facility_Name = as.factor(Facility_Name)) %>%
+  mutate(Zip_Code = as.factor(Zip_Code))->Flint3 
+
+Flint3
+```
+
+I changed the type for some of the variables. Date will be in date format. Zip code, facility name, and sample description will be factors so they be more easily used for categorizing data.
+
+### Statistical and graphical summaries
+
+```{r}
+#Lead
+mean(Flint3$Lead_ppb)
+sd(Flint3$Lead_ppb)
+median(Flint3$Lead_ppb)
+IQR(Flint3$Lead_ppb)
+
+#Copper
+mean(Flint3$Copper_ppb)
+sd(Flint3$Copper_ppb)
+median(Flint3$Copper_ppb)
+IQR(Flint3$Copper_ppb)
+```
+
+For both lead and copper, the mean is greater than the median and there is a lot of variability in the data set.
+
+```{r}
+library(ggplot2)
+ggplot(aes(x = Lead_ppb), data = Flint3)+
+  geom_histogram()
+ggplot(aes(x = Copper_ppb), data = Flint3)+
+  geom_histogram()
+```
+
+The graphs of lead levels and copper levels are heavily skewed right.
+
+```{r}
+ggplot(aes(x=Lead_ppb, y=Copper_ppb), data = Flint3)+
+  geom_point()+
+  geom_smooth(method = lm, se = FALSE)
+
+lm1 <- lm(Copper_ppb ~ Lead_ppb, data = Flint3)
+summary(lm1)
+```
+
+Based on the graph, there is not a strong linear correlation between the lead levels in Flint's pipes and copper levels in Flint's pipes. The regression summary shows a strong linear correlation. This is probably because most of the observations from the lead and copper pipes were 0.
+
+```{r}
+Flint3 %>% 
+  filter(Lead_ppb > 0 | Copper_ppb > 0) %>% 
+  count(Facility_Name)->Flint4
+
+```
+
+There are 21 facilities that had at least 1 sample that contained lead of copper in their water.
