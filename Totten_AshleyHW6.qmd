@@ -1,0 +1,171 @@
+---
+title: "Data-412 HW6"
+author: "Ashley Totten"
+date: "4/17/2025"
+date-format: long
+format: pdf
+editor: visual
+---
+
+## Cleaning Flint data
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+
+Flint <- read.csv("/Users/tottena17/Downloads/AU 24-25/Data-412 R/Flint_Facilities_Testing_2017.csv")
+```
+
+```{r}
+clean_names(Flint)->Flint1
+```
+
+### Cleaning facility name
+
+```{r}
+#checking for unique values in facility name
+Flint1 %>% 
+  distinct(facility_name)
+Flint1 %>% #replacing facility names that were duplicates
+  mutate(facility_name = str_replace(facility_name, "CUMMINGS/ GREAT EXPECTATIONS", "CUMMINGS/GREAT EXPECTATIONS")) %>% 
+  mutate(facility_name = str_replace(facility_name, "CUMMING/ GREAT EXPECTATIONS", "CUMMINGS/GREAT EXPECTATIONS")) %>% 
+  mutate(facility_name = str_replace(facility_name, "WHALEY CHILDRENS CENTER", "WHALEY CHILDREN`S CENTER")) %>%
+  mutate(facility_name = str_replace(facility_name, "WHALEY CHILDREN`S CENTER (MOTT)", "WHALEY CHILDREN`S CENTER")) %>%
+  mutate(facility_name = str_replace(facility_name, "TEDDY BEARS/ PATRICE MOORE", "TEDDY BEARS/PATRICE MOORE"))-> Flint2
+Flint2 %>% 
+  distinct(facility_name)
+```
+
+### Pivoting the data frame
+
+```{r}
+Flint2 %>%  #removing unnecessary columns
+  mutate(city = NULL) %>% 
+  #pivoting the data set so Lead and Copper have their own columns
+  pivot_wider(
+    names_from = "lead",
+    values_from = "result_ppb_3"
+  ) %>% 
+  pivot_wider(
+    names_from = "copper",
+    values_from = "result_ppb_6"
+  ) %>% #I want to simplify the name of the column instead of just cleaning it
+  rename(lead = `Lead 250 mL Sample`) %>% 
+  rename(copper = `Copper 250 mL Sample`)->Flint3
+
+
+Flint3
+  
+```
+
+## Creating data frame for 2
+
+```{r}
+Flint3 %>% 
+  count(facility_name, name = "samples") -> Flint4
+
+Flint3 %>% 
+  group_by(facility_name) %>% 
+  count(lead > 15, name = "exceeds_lead") %>% 
+  filter(`lead > 15` == TRUE)-> Flint5
+
+Flint3 %>% 
+  group_by(facility_name) %>% 
+  count(copper > 1300, name = "exceeds_copper") %>% 
+  filter(`copper > 1300` == TRUE)-> Flint6
+
+Flint3 %>% 
+  group_by(facility_name) %>% 
+  summarize(max_lead = max(lead), min_lead = min(lead), max_copper = max(copper), min_copper = min(copper))->Flint7
+
+Flint_merge <- full_join(Flint4, Flint5, by = "facility_name")
+Flint_merge1 <- full_join(Flint_merge, Flint6, by = "facility_name")
+Flint_merge2 <- full_join(Flint_merge1, Flint7, by = "facility_name")
+
+Flint_merge2 %>% 
+  mutate(`lead > 15` = NULL, `copper > 1300` = NULL) %>% 
+  mutate(across(everything(), ~replace(., is.na(.), 0)))->Flint_data
+
+Flint_data
+```
+
+## Filter variable for 3
+
+```{r}
+Flint3 %>% 
+  filter(facility_name == "HONEY BEE PALACE CHILD CARE" | (facility_name == "MONIQUE HENDRIX" & sample_description == "01KC001 KITCHEN") | (str_detect(sample_description, "WC") | str_detect(sample_description, "DW")))->filter1
+
+filter1 %>% 
+  mutate(filter = "filtered")->filter2
+
+filter3 <- right_join(filter2, Flint3)
+
+filter3 %>% 
+  mutate(across(everything(), ~replace(., is.na(.), "unfiltered"))) %>% 
+  mutate(filter = as.factor(filter)) %>% 
+  mutate(lead = as.numeric(lead)) %>% 
+  mutate(copper = as.numeric(copper))-> filter_data
+
+head(filter_data)
+```
+
+## Location variable for 4
+
+```{r}
+Flint3 %>% 
+  mutate(location = if_else(str_detect(sample_description, "KC"),"kitchen", false = "other")) %>% 
+  mutate(location = if_else(str_detect(sample_description, "BF"),"restroom", location)) %>% 
+  mutate(location = if_else(str_detect(sample_description, "NS"),"nurses station", location)) %>% 
+  mutate(location = if_else(str_detect(sample_description, "WC"),"water cooler", location)) %>% 
+  mutate(location = if_else(str_detect(sample_description, "DW"),"bubbler", location)) %>% 
+  mutate(location  = as.factor(location))->location1
+
+levels(location1$location)
+
+head(location1)
+```
+
+Some of the entries with a sample description of other include descriptions for labelled locations. For example, there are some sample descriptions that include the word "kitchen" but don't include the KC indicator that the description listed as being associated with a kitchen sink.
+
+## Time and Date for 5
+
+```{r}
+Flint3%>% 
+  mutate(subdate = str_replace_all(Flint3$subdate, "T", " ")) %>% 
+  mutate(subdate = str_remove_all(subdate, "Z"))->time1
+
+time1 %>%
+  mutate(subdate = str_remove_all(time1$subdate, "....-..-.. "))->time2
+
+time2 %>% 
+  mutate(subdate = parse_time(time2$subdate, "%H:%M:%S"))->time3
+
+time1 %>% 
+  mutate(subdate = str_remove_all(time1$subdate, "..:..:.."))->time4
+
+time4 %>% 
+  mutate(subdate = parse_date(time4$subdate, "%Y-%m-%d"))->time5
+
+head(time3)
+head(time5)
+
+```
+
+## Exploratory Analysis
+
+```{r}
+filter_data %>%
+  summarize(mean = mean(lead), sd = sd(lead), median = median(lead), IQR = IQR(lead), .by = filter)
+
+filter_data %>% 
+  count(filter)
+
+filter_data %>% 
+  filter(lead > 15, .by = filter)
+
+```
+
+The mean of lead levels of samples from filtered fixtures is greater than the mean lead levels of samples from unfiltered fixtures, samples filtered fixtures also have a greater standard deviation than that of unfiltered fixtures. However, of there are six entries of samples that have concerning levels of lead, three are from filtered samples and three are from unfiltered samples. I would be curious to see if there is a statistically significant difference in the levels of lead from samples from filtered fixtures and samples from unfiltered fixtures. I would hypothesize that there would be a statistically significant difference in the mean sample of lead, but there is not enough evidence to say whether there is a statistically significant difference in samples from fixtures that are above 15ppb, or the level which indicates concern.
