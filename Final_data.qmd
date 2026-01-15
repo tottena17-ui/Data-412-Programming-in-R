@@ -1,0 +1,255 @@
+---
+title: "Final_Data_412"
+author: "Ashley Totten, Meg Norten, Max Harris"
+date: "5/7/25"
+date-format: long
+format: pdf
+editor: visual
+---
+
+## Cleaning Data
+
+```{r}
+library(tidyverse)
+Tree_data <- read_csv("/Users/tottena17/Downloads/AU 24-25/Data-412 R/Street_Tree_Archive.csv")
+```
+
+```{r}
+nrow(Tree_data)
+ncol(Tree_data)
+colnames(Tree_data)
+
+Tree_data %>% 
+  filter(duplicated(Tree_data))
+
+Tree_data %>% 
+  summarize_all(~ any(is.na(.)))
+
+Tree_data %>% 
+  distinct(CONDITION)
+
+```
+
+```{r}
+Tree_data %>% 
+  mutate(OBJECTID = NULL, SMD_ID = NULL, GENUS_NAME = NULL, GLOBALID = NULL) %>% 
+  mutate(TBOX_STAT = as.factor(TBOX_STAT), WARD_ID = as.factor(WARD_ID), 
+         CONDITION = as.factor(CONDITION), WARD_ID = as.factor(WARD_ID))->Tree2
+
+sapply(Tree_data, class)
+
+```
+
+## Year Graphs
+
+```{r}
+Tree2 %>% 
+  filter(!is.na(CONDITION)) %>% 
+  filter(!is.na(WARD_ID)) %>%
+  mutate(CONDITION = factor(CONDITION, levels = c("Dead", "Poor", "Fair", "Good", "Excellent"), ordered = TRUE))-> TreeYear
+
+ggplot(aes(x = YEAR, fill = CONDITION), data = TreeYear)+
+  geom_bar()+
+  scale_x_continuous(breaks = c(2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025), labels = c("2014", "2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"))+
+  scale_fill_brewer(palette = "RdYlGn")+
+  labs(x = "Year", y = "Trees", fill = "Condition", title = "Number of Trees in Washington D.C. from 2014-2025")
+
+
+
+```
+
+This graph shows the number of trees in Washington D.C. from 2014-2025, divided by their condition. There is no data from this data set on the trees in 2018 or 2020. The number of trees is steadily increasing over the 11 year period, with the number of trees in 2014 being roughly 130,000 and the number of trees in 2025 being roughly 200,000, a 70,000 trees difference. The amount good and excellent trees did not proportionally increase from 2021-2025, they increased slightly, but the amount fair, poor, or dead trees increased in those years.
+
+## Basic Analysis
+
+The data set was cleaned by filtering out any observations that did not have an input for ward or condition, filtering for only the year 2024, and making the condition variable an ordered factor.
+
+```{r}
+library(ggplot2)
+library(RColorBrewer)
+Tree2 %>% 
+  filter(!is.na(CONDITION)) %>% 
+  filter(!is.na(WARD_ID)) %>% 
+  filter(YEAR == "2024") %>% 
+  mutate(CONDITION = factor(CONDITION, levels = c("Dead", "Poor", "Fair", "Good", "Excellent"), ordered = TRUE))->Tree3
+
+ggplot(aes(x = WARD_ID, fill = CONDITION), data = Tree3)+
+  geom_bar()+
+  labs(x = "Ward", y = "Trees", title = "Number of Trees in each Ward by Condition", fill = "Condition")+
+  scale_fill_brewer(palette = "RdYlGn")
+
+```
+
+This bar graph shows the number of trees in Washington D.C. in each ward in 2024, broken up by the condition they are in. From this we can see that Ward 1 has the least number of trees, at roughly 11,000 trees and Ward 3 has the most trees at roughly 33,000 trees. All of the wards have larger percentage of trees that are good and excellent compared to dead, poor, and fair trees. Ward 2 has the smallest percentage of excellent trees compared to the other wards. Wards 2 and 7 have larger percentages of dead trees compared to the other wards. All of the wards have the most trees categorized as being in "Good" condition.
+
+```{r}
+ggplot(aes(x = CONDITION, fill = WARD_ID), data = Tree3)+
+  geom_bar()+
+  scale_x_discrete(limits = c("Dead", "Poor", "Fair", "Good", "Excellent"))+
+  labs(x = "Condition", y = "Trees", title = "Number of Trees of each Condition by Ward", fill = "Ward")
+```
+
+This bar graph shows the number of trees in Washington D.C. in 2024 of each condition, then divided by ward. Over 150,000 trees are categorized as good, the most of all of the conditions. Looking at the good condition bar, there are the least amount of trees of good condition in ward 1. There are the least amount of dead and poor trees, with each categories having around 10,000 trees. This graph helps to identify how many trees are in each condition, but is not great at comparing ward and condition. The first graph, shown above, is better for this purpose because you can see condition relative to how many trees are in each ward.
+
+```{r}
+Tree3 %>% 
+  filter(CONDITION == "Dead"| CONDITION == "Poor") %>% 
+  count(CONDITION, .by = WARD_ID) %>% 
+  mutate(SUM = sum(n), .by = ".by") %>% 
+  distinct(.by, SUM) %>% 
+  rename(WARD_ID = .by)->tree_sum_dead_poor
+
+Tree3 %>% 
+  filter(CONDITION == "Good"| CONDITION == "Excellent") %>% 
+  count(CONDITION, .by = WARD_ID) %>% 
+  mutate(SUM = sum(n), .by = ".by") %>% 
+  distinct(.by, SUM) %>% 
+  rename(WARD_ID = .by)->tree_sum_good_excel
+
+Tree3 %>% 
+  count(WARD_ID) %>% 
+  rename(TOTAL_TREES = n)->tree_total_ward
+
+tree_total_ward %>% 
+  mutate(DEAD_POOR_TREES = tree_sum_dead_poor$SUM) %>% 
+  mutate(GOOD_EXCEL_TREES = tree_sum_good_excel$SUM) %>% 
+  mutate(DEAD_POOR = DEAD_POOR_TREES / TOTAL_TREES) %>% 
+  mutate(GOOD_EXCEL = GOOD_EXCEL_TREES / TOTAL_TREES)->tree_proportions
+
+```
+
+The proportions of dead or poor and good excellent trees were found by filtering for the conditions, counting the number trees of each condition using ward as a grouping variable, adding the two conditions together and keeping the group by variable, then filtering the duplicates so there is a two column tibble that only includes ward and the number of trees in each ward. There are two data sets of this, one with dead or poor, and one with good or excellent. To get these raw counts to proportions, I count the total number of trees by ward and place that in a separate tibble. Then, I mutated that tibble to add in the number of dead or poor trees and number of dead and poor trees. I mutate this tibble again to calculate the proportion of dead or poor trees in each ward and the proportion of good or excellent trees in each ward by dividing the number of trees of the conditions in each ward by the total number of trees in each ward.
+
+```{r}
+library(patchwork)
+p1<- ggplot(aes(x = WARD_ID, y = SUM), data = tree_sum_dead_poor)+
+  geom_col(fill = "salmon")+
+  labs(x = "Ward", y = " Number of Trees", title = "Dead or Poor Trees by Ward")
+
+p2<- ggplot(aes(x = WARD_ID, y = SUM), data = tree_sum_good_excel)+
+  geom_col(fill = "darkseagreen")+
+  labs(x = "Ward", y = "Number of Trees", title = "Good or Excellent Trees by Ward")
+
+p1 + p2
+```
+
+These bar graphs show how many dead and poor trees are in each ward and how many good and excellent trees are in each ward. With comparing these graphs, it is important to note the scale for the number of trees. With the graph showing the dead and poor trees, the graph goes up to 2000 trees. On the good and excellent graph, the scale goes up to 20,000 trees with many wards having more than 20,000 good and excellent trees. Ward 4 has the most dead or poor trees, and wards 2 and 6 have the least amount of dead and poor trees. Wards 3 and 4 have the most amount of good and excellent trees. Ward 1 has the least amount of good and excellent trees. These measurements are a raw count and do not factor in the number of trees in wach ward.
+
+```{r}
+p1<- ggplot(aes(x = WARD_ID, y = DEAD_POOR), data = tree_proportions)+
+  geom_col(fill = "salmon")+
+  labs(x = "Ward", y = " Proprotion of Trees", title = "Dead or Poor Trees by Ward")
+
+p2<- ggplot(aes(x = WARD_ID, y = GOOD_EXCEL), data = tree_proportions)+
+  geom_col(fill = "darkseagreen")+
+  labs(x = "Ward", y = "Proportion of Trees", title = "Good or Excellent Trees by Ward")
+
+p1 + p2
+```
+
+These graphs measure the proportion of trees of dead or poor condition and of good and excellent condition in each ward. Similar to the previous graph, the scales for each graph are different. The proportion of dead and poor trees graph has a maximum on the y-axis of .06, whereas the proportion of good and excellent trees graph has a maximum on the y-axis of .8. In wards 1, 4, and 8, more than 6% of their trees are dead or poor. Wards 2 and 6 have the least proportion of dead or poor trees with around 3% of their trees being dead or poor. All of the 8 wards have very similar proportions of good or excellent trees with an average of 80%. Wards 2, 6, and 8, have just under 80% of their trees being good or excellent, while ward 1 has the most amount of trees being good or excellent at around 82%.
+
+## ANOVA
+
+```{r}
+library(DescTools)
+library(gmodels)
+anova_model<-aov(DBH~WARD_ID, data = Tree3)
+anova(anova_model)
+PostHocTest(anova_model, method = "lsd")
+```
+
+```{r}
+anova_model1<- aov(GOOD_EXCEL~WARD_ID, data = tree_proportions)
+anova(anova_model1)
+```
+
+```{r}
+Tree3 %>% 
+  filter(CONDITION == "Dead"| CONDITION == "Poor") %>% 
+  count(CONDITION, .by = WARD_ID) %>% 
+  mutate(SUM = sum(n), .by = ".by") %>% 
+  distinct(.by, SUM) %>% 
+  rename(WARD_ID = .by)->tree_sum_dead_poor
+
+Tree3 %>% 
+  filter(CONDITION == "Good"| CONDITION == "Excellent") %>% 
+  count(CONDITION, .by = WARD_ID) %>% 
+  mutate(SUM = sum(n), .by = ".by") %>% 
+  distinct(.by, SUM) %>% 
+  rename(WARD_ID = .by)->tree_sum_good_excel
+
+Tree3 %>% 
+  count(WARD_ID) %>% 
+  rename(TOTAL_TREES = n)->tree_total_ward
+
+#Tree3 %>% 
+ # filter(CONDITION == "Dead"| CONDITION == "Poor") %>% 
+  #group_by(WARD_ID) %>% 
+#  mutate(DEAD_POOR_TREES = n()) %>% 
+
+Tree3 %>% 
+  group_by(WARD_ID) %>% 
+  count(CONDITION == "Dead"| CONDITION == "Poor", CONDITION == "Good"| CONDITION == "Excellent")
+
+
+```
+
+```{r}
+Tree3 <- Tree3 |>
+  mutate(
+    GOOD_EXCELLENT = CONDITION %in% c("Good", "Excellent")
+    ) |>
+  group_by(WARD_ID) |>
+  mutate(
+    TOTAL_TREES = n(),
+    TOTAL_GOOD_EXCELLENT = sum(GOOD_EXCELLENT),
+    PROP_GOOD_EXCELLENT = TOTAL_GOOD_EXCELLENT/TOTAL_TREES
+  ) |>
+  ungroup()
+```
+
+```{r}
+anova_model2 <- aov(PROP_GOOD_EXCELLENT~WARD_ID, data=Tree3)
+anova(anova_model2)
+```
+
+```{r}
+PostHocTest(anova_model2, method = "lsd")
+```
+
+```{r}
+Tree4 <- Tree3 |>
+  mutate(
+    DEAD_POOR = CONDITION %in% c("Poor", "Dead")
+    ) |>
+  group_by(WARD_ID) |>
+  mutate(
+    TOTAL_TREES = n(),
+    TOTAL_DEAD_POOR = sum(DEAD_POOR),
+    PROP_DEAD_POOR = TOTAL_DEAD_POOR/TOTAL_TREES
+  ) |>
+  ungroup()
+```
+
+```{r}
+anova_model3 <- aov(PROP_DEAD_POOR~WARD_ID, data=Tree4)
+anova(anova_model3)
+```
+
+```{r}
+PostHocTest(anova_model3, method = "lsd")
+```
+
+### Conditions
+
+```{r}
+library(car)
+#shapiro.test(anova_model2)
+#shapiro.test(anova_model3)
+```
+
+```{r}
+#levene.test(anova_mdoel2)
+#levene.test(anova_model3)
+```
